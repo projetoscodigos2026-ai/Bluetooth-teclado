@@ -27,9 +27,7 @@ public class BluetoothHidPlugin extends Plugin {
     private BluetoothDevice targetDevice;
     private boolean connected = false;
 
-    // ===== DESCRITOR HID (Teclado Report 1 + Mouse Report 2 + Gamepad Report 3) =====
     private static final byte[] HID_DESCRIPTOR = {
-        // ---- TECLADO (Report ID 1) ----
         (byte) 0x05, (byte) 0x01,
         (byte) 0x09, (byte) 0x06,
         (byte) 0xA1, (byte) 0x01,
@@ -54,8 +52,6 @@ public class BluetoothHidPlugin extends Plugin {
         (byte) 0x29, (byte) 0x65,
         (byte) 0x81, (byte) 0x00,
         (byte) 0xC0,
-
-        // ---- MOUSE (Report ID 2) ----
         (byte) 0x05, (byte) 0x01,
         (byte) 0x09, (byte) 0x02,
         (byte) 0xA1, (byte) 0x01,
@@ -83,8 +79,6 @@ public class BluetoothHidPlugin extends Plugin {
         (byte) 0x81, (byte) 0x06,
         (byte) 0xC0,
         (byte) 0xC0,
-
-        // ---- GAMEPAD (Report ID 3) ----
         (byte) 0x05, (byte) 0x01,
         (byte) 0x09, (byte) 0x05,
         (byte) 0xA1, (byte) 0x01,
@@ -118,24 +112,22 @@ public class BluetoothHidPlugin extends Plugin {
                 @Override
                 public void onServiceConnected(int profile, BluetoothProfile proxy) {
                     hidDevice = (BluetoothHidDevice) proxy;
-                    Log.i(TAG, "Perfil HID conectado");
+                    Log.i(TAG, "Perfil HID pronto");
                 }
 
                 @Override
                 public void onServiceDisconnected(int profile) {
                     hidDevice = null;
                     connected = false;
-                    Log.w(TAG, "Perfil HID desconectado");
                 }
             }, BluetoothProfile.HID_DEVICE);
         }
     }
 
-    // ========== LISTAR DISPOSITIVOS PAREADOS ==========
     @PluginMethod
     public void scanDevices(PluginCall call) {
         if (adapter == null || !adapter.isEnabled()) {
-            call.reject("Bluetooth desligado ou indisponivel");
+            call.reject("Bluetooth desligado");
             return;
         }
         Set<BluetoothDevice> paired = adapter.getBondedDevices();
@@ -153,16 +145,15 @@ public class BluetoothHidPlugin extends Plugin {
         call.resolve(ret);
     }
 
-    // ========== CONECTAR COMO HID NO PROJETOR ==========
     @PluginMethod
     public void connect(PluginCall call) {
         String address = call.getString("address");
         if (address == null) {
-            call.reject("Endereco MAC nao fornecido");
+            call.reject("MAC nao fornecido");
             return;
         }
         if (hidDevice == null) {
-            call.reject("Perfil HID nao inicializado. Tente novamente.");
+            call.reject("HID nao inicializado");
             return;
         }
 
@@ -173,9 +164,9 @@ public class BluetoothHidPlugin extends Plugin {
                 BluetoothHidDeviceAppSdpSettings sdp =
                         new BluetoothHidDeviceAppSdpSettings(
                                 "Air Controller",
-                                "Controle HID via Bluetooth",
+                                "Controle HID Bluetooth",
                                 "AirController",
-                                0x00,
+                                (byte) 0x00,
                                 HID_DESCRIPTOR
                         );
 
@@ -197,7 +188,7 @@ public class BluetoothHidPlugin extends Plugin {
                         new BluetoothHidDevice.Callback() {
                             @Override
                             public void onAppStatusChanged(BluetoothDevice pluggedDevice, boolean isRegistered) {
-                                Log.i(TAG, "App HID registrado: " + isRegistered);
+                                Log.i(TAG, "Registrado: " + isRegistered);
                                 if (isRegistered && targetDevice != null) {
                                     hidDevice.connect(targetDevice);
                                 }
@@ -210,14 +201,13 @@ public class BluetoothHidPlugin extends Plugin {
                                     Log.i(TAG, "CONECTADO: " + device.getName());
                                 } else if (state == BluetoothHidDevice.STATE_DISCONNECTED) {
                                     connected = false;
-                                    Log.w(TAG, "DESCONECTADO");
                                 }
                             }
                         }
                 );
 
                 if (!registered) {
-                    call.reject("Falha ao registrar app HID");
+                    call.reject("Falha ao registrar HID");
                     return;
                 }
 
@@ -231,13 +221,12 @@ public class BluetoothHidPlugin extends Plugin {
                 call.resolve(ret);
 
             } catch (Exception e) {
-                Log.e(TAG, "Erro na conexao", e);
+                Log.e(TAG, "Erro", e);
                 call.reject("Erro: " + e.getMessage());
             }
         }).start();
     }
 
-    // ========== DESCONECTAR ==========
     @PluginMethod
     public void disconnect(PluginCall call) {
         try {
@@ -253,7 +242,6 @@ public class BluetoothHidPlugin extends Plugin {
         }
     }
 
-    // ========== ENVIAR TECLA (Report ID 1) ==========
     @PluginMethod
     public void sendKey(PluginCall call) {
         if (!connected || hidDevice == null || targetDevice == null) {
@@ -280,7 +268,6 @@ public class BluetoothHidPlugin extends Plugin {
         }).start();
     }
 
-    // ========== ENVIAR MOUSE (Report ID 2) ==========
     @PluginMethod
     public void sendMouse(PluginCall call) {
         if (!connected || hidDevice == null || targetDevice == null) {
@@ -308,7 +295,6 @@ public class BluetoothHidPlugin extends Plugin {
         }).start();
     }
 
-    // ========== ENVIAR GAMEPAD (Report ID 3) ==========
     @PluginMethod
     public void sendGamepad(PluginCall call) {
         if (!connected || hidDevice == null || targetDevice == null) {
@@ -340,7 +326,6 @@ public class BluetoothHidPlugin extends Plugin {
         }).start();
     }
 
-    // ========== MAPEAMENTO ANDROID KEYCODE -> HID USAGE ==========
     private int androidKeyToHid(int keyCode) {
         switch (keyCode) {
             case 29: return 0x04;
