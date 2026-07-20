@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Air Controller</title>
+    <style>
+        :root {
+            --bg: #080c14;
+            --panel: #111827;
+            --blue: #00f0ff;
+            --neon: #ff0055;
+            --green: #00ff66;
+            --yellow: #ffcc00;
+            --text: #ffffff;
+            --key-bg: #1f293d;
+        }
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0; padding: 0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh; width: 100vw;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        /* === HEADER === */
+        header {
+            height: 50px;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid rgba(0,240,255,0.2);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 12px;
+        }
+        .bt-status { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: bold; }
+        .dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #ff3333; box-shadow: 0 0 8px #ff3333;
+            transition: all 0.3s;
+        }
+        .dot.connected { background: var(--green); box-shadow: 0 0 10px var(--green); }
+        .btn-bt {
+            background: rgba(0,240,255,0.1); border: 1px solid var(--blue);
+            color: var(--blue); padding: 6px 14px; border-radius: 15px;
+            font-size: 11px; font-weight: bold; cursor: pointer;
+        }
+        .btn-bt:active { background: var(--blue); color: #000; }
+        .btn-bt.disconnect { border-color: var(--neon); color: var(--neon); background: rgba(255,0,85,0.1); }
+
+        .mode-tabs { display: flex; gap: 4px; }
+        .tab-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.5); padding: 6px 12px; border-radius: 8px;
+            font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;
+        }
+        .tab-btn.active { background: var(--blue); color: #000; border-color: var(--blue); }
+
+        /* === CONTAINER === */
+        #main { flex: 1; position: relative; overflow: hidden; }
+        .mode-panel {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            padding: 8px; display: flex; flex-direction: column;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .mode-panel.active { opacity: 1; pointer-events: all; }
+
+        /* === TECLADO === */
+        .touchpad {
+            flex: 1; background: var(--panel);
+            border: 1px solid rgba(0,240,255,0.3); border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,0.3); font-size: 12px;
+            touch-action: none; margin-bottom: 6px; position: relative;
+        }
+        .touchpad-hint {
+            position: absolute; bottom: 8px; right: 10px;
+            font-size: 10px; color: rgba(255,255,255,0.2);
+        }
+        .keyboard { display: flex; flex-direction: column; gap: 3px; }
+        .row { display: flex; gap: 3px; justify-content: center; }
+        .key {
+            background: var(--key-bg); border: 1px solid rgba(255,255,255,0.08);
+            color: #fff; flex: 1; height: 34px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 5px; font-size: 11px; font-weight: bold;
+            touch-action: manipulation; transition: background 0.1s;
+        }
+        .key:active { background: var(--blue); color: #000; }
+        .key-nav { background: rgba(0,255,102,0.15); color: var(--green); font-size: 13px; }
+        .key-action { background: rgba(0,240,255,0.15); color: var(--blue); }
+        .key-enter { background: var(--blue); color: #000; }
+        .key-vol { background: rgba(255,204,0,0.15); color: var(--yellow); }
+
+        /* === JOYSTICK === */
+        .joystick-layout {
+            flex: 1; display: flex; justify-content: space-between;
+            align-items: center; padding: 10px 20px;
+        }
+        .analog-container {
+            width: 130px; height: 130px;
+            border: 2px dashed var(--blue); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            position: relative; touch-action: none;
+        }
+        .analog-stick {
+            width: 55px; height: 55px;
+            background: radial-gradient(circle, var(--blue) 0%, rgba(0,240,255,0.3) 100%);
+            border-radius: 50%; box-shadow: 0 0 15px var(--blue);
+            position: absolute; transition: transform 0.05s;
+        }
+        .dpad {
+            display: grid; grid-template-columns: repeat(3, 44px);
+            grid-template-rows: repeat(3, 44px); gap: 3px;
+        }
+        .dpad-btn {
+            background: var(--key-bg); border: 1px solid rgba(255,255,255,0.1);
+            color: #fff; border-radius: 8px; font-size: 16px;
+            display: flex; align-items: center; justify-content: center;
+            touch-action: manipulation;
+        }
+        .dpad-btn:active { background: var(--green); color: #000; }
+        .dpad-center { background: rgba(0,255,102,0.2); color: var(--green); font-size: 12px; }
+        .dpad-empty { background: transparent; border: none; }
+
+        .abxy { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 5px; }
+        .btn-game {
+            width: 52px; height: 52px; border-radius: 50%; border: none;
+            font-weight: bold; font-size: 18px; touch-action: manipulation;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .btn-game:active { transform: scale(0.88); filter: brightness(1.4); }
+        .btn-y { grid-column: 2; grid-row: 1; background: var(--yellow); color: #000; }
+        .btn-x { grid-column: 1; grid-row: 2; background: var(--blue); color: #000; }
+        .btn-b { grid-column: 3; grid-row: 2; background: var(--neon); color: #fff; }
+        .btn-a { grid-column: 2; grid-row: 3; background: var(--green); color: #000; }
+
+        .sys-row {
+            display: flex; justify-content: center; gap: 10px;
+            padding: 8px 0;
+        }
+        .btn-sys {
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+            color: #fff; padding: 8px 16px; border-radius: 20px;
+            font-size: 11px; font-weight: bold; touch-action: manipulation;
+        }
+        .btn-sys:active { background: var(--blue); color: #000; }
+
+        .shoulder-row {
+            display: flex; justify-content: space-between; padding: 0 20px 5px;
+        }
+        .btn-shoulder {
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.6); padding: 8px 30px; border-radius: 10px;
+            font-size: 12px; font-weight: bold; touch-action: manipulation;
+        }
+        .btn-shoulder:active { background: var(--neon); color: #fff; }
+
+        /* === TOAST === */
+        #toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.9); border: 1px solid var(--blue);
+            color: var(--blue); padding: 10px 20px; border-radius: 20px;
+            font-size: 12px; font-weight: bold; opacity: 0;
+            transition: opacity 0.3s; pointer-events: none; z-index: 999;
+        }
+        #toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="bt-status">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusText">Desconectado</span>
+        <button class="btn-bt" id="btnBT">Parear</button>
+    </div>
+    <div class="mode-tabs">
+        <button class="tab-btn active" data-mode="keyboard">⌨ Teclado</button>
+        <button class="tab-btn" data-mode="joystick">🎮 Joystick</button>
+    </div>
+</header>
+
+<div id="main">
+
+    <!-- ====== MODO TECLADO + TOUCHPAD ====== -->
+    <div class="mode-panel active" id="panel-keyboard">
+        <div class="touchpad" id="touchpad">
+            Arraste = mover cursor &nbsp;|&nbsp; Toque rápido = clique
+            <span class="touchpad-hint">2 dedos = scroll</span>
+        </div>
+
+        <div class="keyboard">
+            <!-- NAVEGAÇÃO ANDROID -->
+            <div class="row">
+                <div class="key key-nav" data-key="4" style="flex:1.4;">⬅ VOLTAR</div>
+                <div class="key key-nav" data-key="3">🏠</div>
+                <div class="key key-nav" data-key="19">▲</div>
+                <div class="key key-nav" data-key="20">▼</div>
+                <div class="key key-nav" data-key="21">◀</div>
+                <div class="key key-nav" data-key="22">▶</div>
+                <div class="key key-nav" data-key="23" style="flex:1.2;">OK</div>
+                <div class="key key-nav" data-key="26">⏻</div>
+            </div>
+            <!-- NÚMEROS -->
+            <div class="row">
+                <div class="key" data-key="8">1</div><div class="key" data-key="9">2</div>
+                <div class="key" data-key="10">3</div><div class="key" data-key="11">4</div>
+                <div class="key" data-key="12">5</div><div class="key" data-key="13">6</div>
+                <div class="key" data-key="14">7</div><div class="key" data-key="15">8</div>
+                <div class="key" data-key="16">9</div><div class="key" data-key="7">0</div>
+            </div>
+            <!-- QWERTY 1 -->
+            <div class="row">
+                <div class="key" data-key="45">Q</div><div class="key" data-key="51">W</div>
+                <div class="key" data-key="33">E</div><div class="key" data-key="46">R</div>
+                <div class="key" data-key="48">T</div><div class="key" data-key="53">Y</div>
+                <div class="key" data-key="49">U</div><div class="key" data-key="37">I</div>
+                <div class="key" data-key="43">O</div><div class="key" data-key="44">P</div>
+            </div>
+            <!-- QWERTY 2 -->
+            <div class="row">
+                <div class="key" data-key="29">A</div><div class="key" data-key="47">S</div>
+                <div class="key" data-key="32">D</div><div class="key" data-key="34">F</div>
+                <div class="key" data-key="35">G</div><div class="key" data-key="36">H</div>
+                <div class="key" data-key="38">J</div><div class="key" data-key="39">K</div>
+                <div class="key" data-key="40">L</div>
+                <div class="key key-action" data-key="67">⌫</div>
+            </div>
+            <!-- QWERTY 3 + SHIFT -->
+            <div class="row">
+                <div class="key key-action" data-key="59" style="flex:1.4;">⇧</div>
+                <div class="key" data-key="54">Z</div><div class="key" data-key="52">X</div>
+                <div class="key" data-key="31">C</div><div class="key" data-key="50">V</div>
+                <div class="key" data-key="30">B</div><div class="key" data-key="42">N</div>
+                <div class="key" data-key="41">M</div>
+                <div class="key" data-key="55">,</div>
+                <div class="key" data-key="56">.</div>
+                <div class="key" data-key="77">@</div>
+            </div>
+            <!-- ESPAÇO + ENTER + VOLUME -->
+            <div class="row">
+                <div class="key key-vol" data-key="24">🔊+</div>
+                <div class="key key-vol" data-key="25">🔉-</div>
+                <div class="key" data-key="62" style="flex:3;">ESPAÇO</div>
+                <div class="key" data-key="61">TAB</div>
+                <div class="key key-enter" data-key="66" style="flex:1.5;">ENTER</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== MODO JOYSTICK ====== -->
+    <div class="mode-panel" id="panel-joystick">
+        <div class="shoulder-row">
+            <button class="btn-shoulder" data-btn="L1">L1</button>
+            <button class="btn-shoulder" data-btn="R1">R1</button>
+        </div>
+
+        <div class="joystick-layout">
+            <!-- ANALÓGICO -->
+            <div class="analog-container" id="analogContainer">
+                <div class="analog-stick" id="analogStick"></div>
+            </div>
+
+            <!-- D-PAD -->
+            <div class="dpad">
+                <div class="dpad-btn dpad-empty"></div>
+                <div class="dpad-btn" data-key="19">▲</div>
+                <div class="dpad-btn dpad-empty"></div>
+                <div class="dpad-btn" data-key="21">◀</div>
+                <div class="dpad-btn dpad-center" data-key="23">OK</div>
+                <div class="dpad-btn" data-key="22">▶</div>
+                <div class="dpad-btn dpad-empty"></div>
+                <div class="dpad-btn" data-key="20">▼</div>
+                <div class="dpad-btn dpad-empty"></div>
+            </div>
+
+            <!-- ABXY -->
+            <div class="abxy">
+                <button class="btn-game btn-y" data-btn="Y">Y</button>
+                <button class="btn-game btn-x" data-btn="X">X</button>
+                <button class="btn-game btn-b" data-btn="B">B</button>
+                <button class="btn-game btn-a" data-btn="A">A</button>
+            </div>
+        </div>
+
+        <!-- BOTÕES SISTEMA -->
+        <div class="sys-row">
+            <button class="btn-sys" data-key="4">⬅ BACK</button>
+            <button class="btn-sys" data-key="3">🏠 HOME</button>
+            <button class="btn-sys" data-btn="START">☰ START</button>
+            <button class="btn-sys" data-btn="SELECT">⊟ SELECT</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// =============================================
+//  PONTE NATIVA (Capacitor → Java BluetoothHID)
+// =============================================
+const NativeHID = {
+    async connect(macAddress) {
+        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
+            return await Capacitor.Plugins.BluetoothHID.connect({ address: macAddress });
+        }
+        showToast("Plugin HID não encontrado. Rode como APK.");
+    },
+    async disconnect() {
+        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
+            return await Capacitor.Plugins.BluetoothHID.disconnect();
+        }
+    },
+    async sendKey(keyCode, action) {
+        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
+            return await Capacitor.Plugins.BluetoothHID.sendKey({ keyCode, action });
+        }
+    },
+    async sendMouse(dx, dy, buttons) {
+        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
+            return await Capacitor.Plugins.BluetoothHID.sendMouse({ dx, dy, buttons });
+        }
+    },
+    async sendGamepad(buttons, lx, ly, rx, ry) {
+        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
+            return await Capacitor.Plugins.BluetoothHID.sendGamepad({ buttons, lx, ly, rx, ry });
+        }
+    },
+    async scanDevices() {
+        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
+            return await Capacitor.Plugins.BluetoothHID.scanDevices();
+        }
+        return { devices: [] };
+    }
+};
+
+// =============================================
+//  TOAST
+// =============================================
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// =============================================
+//  CONEXÃO BLUETOOTH
+// =============================================
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const btnBT = document.getElementById('btnBT');
+let isConnected = false;
+
+btnBT.addEventListener('click', async () => {
+    if (!isConnected) {
+        showToast("Procurando dispositivos...");
+        const result = await NativeHID.scanDevices();
+        if (result.devices && result.devices.length > 0) {
+            const dev = result.devices[0];
+            const res = await NativeHID.connect(dev.address);
+            if (res.success) {
+                isConnected = true;
+                statusDot.classList.add('connected');
+                statusText.innerText = dev.name || "Conectado";
+                btnBT.innerText = "Desconectar";
+                btnBT.classList.add('disconnect');
+                showToast("Conectado: " + (dev.name || "Projetor"));
+            }
+        } else {
+            showToast("Nenhum dispositivo encontrado");
+        }
+    } else {
+        await NativeHID.disconnect();
+        isConnected = false;
+        statusDot.classList.remove('connected');
+        statusText.innerText = "Desconectado";
+        btnBT.innerText = "Parear";
+        btnBT.classList.remove('disconnect');
+        showToast("Desconectado");
+    }
+});
+
+// =============================================
+//  TROCA DE MODO
+// =============================================
+document.querySelectorAll('.tab-btn').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.mode).classList.add('active');
+    });
+});
+
+// =============================================
+//  TECLADO — KeyDown / KeyUp real
+// =============================================
+document.querySelectorAll('.key, .dpad-btn:not(.dpad-empty)').forEach(key => {
+    const keyCode = parseInt(key.dataset.key);
+    if (!keyCode) return;
+
+    key.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        NativeHID.sendKey(keyCode, 'DOWN');
+    });
+    key.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        NativeHID.sendKey(keyCode, 'UP');
+    });
+});
+
+// =============================================
+//  TOUCHPAD — Tap = clique, Drag = mover, 2 dedos = scroll
+// =============================================
+const touchpad = document.getElementById('touchpad');
+let tpLastX = 0, tpLastY = 0, tpStartTime = 0, tpMoved = false, tpFingers = 0;
+
+touchpad.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    tpFingers = e.touches.length;
+    tpStartTime = Date.now();
+    tpMoved = false;
+    tpLastX = e.touches[0].clientX;
+    tpLastY = e.touches[0].clientY;
+});
+
+touchpad.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    tpMoved = true;
+    const dx = e.touches[0].clientX - tpLastX;
+    const dy = e.touches[0].clientY - tpLastY;
+    tpLastX = e.touches[0].clientX;
+    tpLastY = e.touches[0].clientY;
+
+    if (tpFingers === 2) {
+        NativeHID.sendMouse(0, 0, 0);
+        NativeHID.sendMouse(0, Math.round(dy * 0.5), 0); // scroll
+    } else {
+        NativeHID.sendMouse(Math.round(dx * 1.5), Math.round(dy * 1.5), 0);
+    }
+});
+
+touchpad.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    if (!tpMoved && (Date.now() - tpStartTime) < 200) {
+        NativeHID.sendMouse(0, 0, 1); // clique esquerdo
+        setTimeout(() => NativeHID.sendMouse(0, 0, 0), 50);
+    }
+});
+
+// =============================================
+//  ANALÓGICO — Corrigido com touchstart
+// =============================================
+const analogContainer = document.getElementById('analogContainer');
+const analogStick = document.getElementById('analogStick');
+const MAX_R = 38;
+
+function handleAnalog(e) {
+    const rect = analogContainer.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let tx = e.touches[0].clientX - cx;
+    let ty = e.touches[0].clientY - cy;
+    const dist = Math.min(Math.hypot(tx, ty), MAX_R);
+    const angle = Math.atan2(ty, tx);
+    const mx = Math.cos(angle) * dist;
+    const my = Math.sin(angle) * dist;
+    analogStick.style.transform = `translate(${mx}px, ${my}px)`;
+    NativeHID.sendGamepad(0,
+        Math.round((mx / MAX_R) * 127),
+        Math.round((my / MAX_R) * 127), 0, 0
+    );
+}
+
+analogContainer.addEventListener('touchstart', (e) => { e.preventDefault(); handleAnalog(e); });
+analogContainer.addEventListener('touchmove', (e) => { e.preventDefault(); handleAnalog(e); });
+analogContainer.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    analogStick.style.transform = 'translate(0px, 0px)';
+    NativeHID.sendGamepad(0, 0, 0, 0, 0);
+});
+
+// =============================================
+//  BOTÕES ABXY + OMBROS + SISTEMA (Joystick)
+// =============================================
+const gameBtnMap = { 'A': 1, 'B': 2, 'X': 4, 'Y': 8, 'L1': 16, 'R1': 32, 'START': 64, 'SELECT': 128 };
+
+document.querySelectorAll('.btn-game, .btn-shoulder, .btn-sys[data-btn]').forEach(btn => {
+    const btnName = btn.dataset.btn;
+    const bit = gameBtnMap[btnName] || 0;
+
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        NativeHID.sendGamepad(bit, 0, 0, 0, 0);
+    });
+    btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        NativeHID.sendGamepad(0, 0, 0, 0, 0);
+    });
+});
+</script>
+</body>
+</html>
