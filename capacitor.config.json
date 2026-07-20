@@ -1,11 +1,8 @@
 {
-    "appId": "com.aircontroller.hid",
+    "appId": "com.aircontroller",
     "appName": "Air Controller",
     "webDir": "www",
     "server": {
         "androidScheme": "https"
-    },
-    "plugins": {
-        "BluetoothHID": {}
     }
 }
