@@ -6,8 +6,6 @@ import android.bluetooth.BluetoothHidDevice;
 import android.bluetooth.BluetoothHidDeviceAppQosSettings;
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings;
 import android.bluetooth.BluetoothProfile;
-import android.content.Context;
-import android.os.ParcelUuid;
 import android.util.Log;
 
 import com.getcapacitor.JSArray;
@@ -29,87 +27,87 @@ public class BluetoothHidPlugin extends Plugin {
     private BluetoothDevice targetDevice;
     private boolean connected = false;
 
-    // ===== DESCRITOR HID REAL (Teclado + Mouse + Gamepad) =====
+    // ===== DESCRITOR HID (Teclado Report 1 + Mouse Report 2 + Gamepad Report 3) =====
     private static final byte[] HID_DESCRIPTOR = {
         // ---- TECLADO (Report ID 1) ----
-        (byte)0x05, (byte)0x01,       // Usage Page (Generic Desktop)
-        (byte)0x09, (byte)0x06,       // Usage (Keyboard)
-        (byte)0xA1, (byte)0x01,       // Collection (Application)
-        (byte)0x85, (byte)0x01,       //   Report ID (1)
-        (byte)0x05, (byte)0x07,       //   Usage Page (Key Codes)
-        (byte)0x19, (byte)0xE0,       //   Usage Minimum (224)
-        (byte)0x29, (byte)0xE7,       //   Usage Maximum (231)
-        (byte)0x15, (byte)0x00,       //   Logical Minimum (0)
-        (byte)0x25, (byte)0x01,       //   Logical Maximum (1)
-        (byte)0x75, (byte)0x01,       //   Report Size (1)
-        (byte)0x95, (byte)0x08,       //   Report Count (8)
-        (byte)0x81, (byte)0x02,       //   Input (Data,Var,Abs) → Modifier
-        (byte)0x95, (byte)0x01,       //   Report Count (1)
-        (byte)0x75, (byte)0x08,       //   Report Size (8)
-        (byte)0x81, (byte)0x01,       //   Input (Const) → Reserved
-        (byte)0x95, (byte)0x06,       //   Report Count (6)
-        (byte)0x75, (byte)0x08,       //   Report Size (8)
-        (byte)0x15, (byte)0x00,       //   Logical Minimum (0)
-        (byte)0x25, (byte)0x65,       //   Logical Maximum (101)
-        (byte)0x05, (byte)0x07,       //   Usage Page (Key Codes)
-        (byte)0x19, (byte)0x00,       //   Usage Minimum (0)
-        (byte)0x29, (byte)0x65,       //   Usage Maximum (101)
-        (byte)0x81, (byte)0x00,       //   Input (Data,Array) → 6 teclas
-        (byte)0xC0,                   // End Collection
+        (byte) 0x05, (byte) 0x01,
+        (byte) 0x09, (byte) 0x06,
+        (byte) 0xA1, (byte) 0x01,
+        (byte) 0x85, (byte) 0x01,
+        (byte) 0x05, (byte) 0x07,
+        (byte) 0x19, (byte) 0xE0,
+        (byte) 0x29, (byte) 0xE7,
+        (byte) 0x15, (byte) 0x00,
+        (byte) 0x25, (byte) 0x01,
+        (byte) 0x75, (byte) 0x01,
+        (byte) 0x95, (byte) 0x08,
+        (byte) 0x81, (byte) 0x02,
+        (byte) 0x95, (byte) 0x01,
+        (byte) 0x75, (byte) 0x08,
+        (byte) 0x81, (byte) 0x01,
+        (byte) 0x95, (byte) 0x06,
+        (byte) 0x75, (byte) 0x08,
+        (byte) 0x15, (byte) 0x00,
+        (byte) 0x25, (byte) 0x65,
+        (byte) 0x05, (byte) 0x07,
+        (byte) 0x19, (byte) 0x00,
+        (byte) 0x29, (byte) 0x65,
+        (byte) 0x81, (byte) 0x00,
+        (byte) 0xC0,
 
         // ---- MOUSE (Report ID 2) ----
-        (byte)0x05, (byte)0x01,       // Usage Page (Generic Desktop)
-        (byte)0x09, (byte)0x02,       // Usage (Mouse)
-        (byte)0xA1, (byte)0x01,       // Collection (Application)
-        (byte)0x85, (byte)0x02,       //   Report ID (2)
-        (byte)0x09, (byte)0x01,       //   Usage (Pointer)
-        (byte)0xA1, (byte)0x00,       //   Collection (Physical)
-        (byte)0x05, (byte)0x09,       //     Usage Page (Buttons)
-        (byte)0x19, (byte)0x01,       //     Usage Minimum (1)
-        (byte)0x29, (byte)0x03,       //     Usage Maximum (3)
-        (byte)0x15, (byte)0x00,       //     Logical Minimum (0)
-        (byte)0x25, (byte)0x01,       //     Logical Maximum (1)
-        (byte)0x95, (byte)0x03,       //     Report Count (3)
-        (byte)0x75, (byte)0x01,       //     Report Size (1)
-        (byte)0x81, (byte)0x02,       //     Input (Data,Var,Abs) → Botões
-        (byte)0x95, (byte)0x01,       //     Report Count (1)
-        (byte)0x75, (byte)0x05,       //     Report Size (5)
-        (byte)0x81, (byte)0x01,       //     Input (Const) → Padding
-        (byte)0x05, (byte)0x01,       //     Usage Page (Generic Desktop)
-        (byte)0x09, (byte)0x30,       //     Usage (X)
-        (byte)0x09, (byte)0x31,       //     Usage (Y)
-        (byte)0x15, (byte)0x81,       //     Logical Minimum (-127)
-        (byte)0x25, (byte)0x7F,       //     Logical Maximum (127)
-        (byte)0x75, (byte)0x08,       //     Report Size (8)
-        (byte)0x95, (byte)0x02,       //     Report Count (2)
-        (byte)0x81, (byte)0x06,       //     Input (Data,Var,Rel) → X,Y
-        (byte)0xC0,                   //   End Collection
-        (byte)0xC0,                   // End Collection
+        (byte) 0x05, (byte) 0x01,
+        (byte) 0x09, (byte) 0x02,
+        (byte) 0xA1, (byte) 0x01,
+        (byte) 0x85, (byte) 0x02,
+        (byte) 0x09, (byte) 0x01,
+        (byte) 0xA1, (byte) 0x00,
+        (byte) 0x05, (byte) 0x09,
+        (byte) 0x19, (byte) 0x01,
+        (byte) 0x29, (byte) 0x03,
+        (byte) 0x15, (byte) 0x00,
+        (byte) 0x25, (byte) 0x01,
+        (byte) 0x95, (byte) 0x03,
+        (byte) 0x75, (byte) 0x01,
+        (byte) 0x81, (byte) 0x02,
+        (byte) 0x95, (byte) 0x01,
+        (byte) 0x75, (byte) 0x05,
+        (byte) 0x81, (byte) 0x01,
+        (byte) 0x05, (byte) 0x01,
+        (byte) 0x09, (byte) 0x30,
+        (byte) 0x09, (byte) 0x31,
+        (byte) 0x15, (byte) 0x81,
+        (byte) 0x25, (byte) 0x7F,
+        (byte) 0x75, (byte) 0x08,
+        (byte) 0x95, (byte) 0x02,
+        (byte) 0x81, (byte) 0x06,
+        (byte) 0xC0,
+        (byte) 0xC0,
 
         // ---- GAMEPAD (Report ID 3) ----
-        (byte)0x05, (byte)0x01,       // Usage Page (Generic Desktop)
-        (byte)0x09, (byte)0x05,       // Usage (Game Pad)
-        (byte)0xA1, (byte)0x01,       // Collection (Application)
-        (byte)0x85, (byte)0x03,       //   Report ID (3)
-        (byte)0x05, (byte)0x09,       //   Usage Page (Buttons)
-        (byte)0x19, (byte)0x01,       //   Usage Minimum (1)
-        (byte)0x29, (byte)0x08,       //   Usage Maximum (8)
-        (byte)0x15, (byte)0x00,       //   Logical Minimum (0)
-        (byte)0x25, (byte)0x01,       //   Logical Maximum (1)
-        (byte)0x95, (byte)0x08,       //   Report Count (8)
-        (byte)0x75, (byte)0x01,       //   Report Size (1)
-        (byte)0x81, (byte)0x02,       //   Input (Data,Var,Abs) → 8 botões
-        (byte)0x05, (byte)0x01,       //   Usage Page (Generic Desktop)
-        (byte)0x09, (byte)0x30,       //   Usage (X)
-        (byte)0x09, (byte)0x31,       //   Usage (Y)
-        (byte)0x09, (byte)0x32,       //   Usage (Z)
-        (byte)0x09, (byte)0x35,       //   Usage (Rz)
-        (byte)0x15, (byte)0x81,       //   Logical Minimum (-127)
-        (byte)0x25, (byte)0x7F,       //   Logical Maximum (127)
-        (byte)0x75, (byte)0x08,       //   Report Size (8)
-        (byte)0x95, (byte)0x04,       //   Report Count (4)
-        (byte)0x81, (byte)0x02,       //   Input (Data,Var,Abs) → 4 eixos
-        (byte)0xC0                    // End Collection
+        (byte) 0x05, (byte) 0x01,
+        (byte) 0x09, (byte) 0x05,
+        (byte) 0xA1, (byte) 0x01,
+        (byte) 0x85, (byte) 0x03,
+        (byte) 0x05, (byte) 0x09,
+        (byte) 0x19, (byte) 0x01,
+        (byte) 0x29, (byte) 0x08,
+        (byte) 0x15, (byte) 0x00,
+        (byte) 0x25, (byte) 0x01,
+        (byte) 0x95, (byte) 0x08,
+        (byte) 0x75, (byte) 0x01,
+        (byte) 0x81, (byte) 0x02,
+        (byte) 0x05, (byte) 0x01,
+        (byte) 0x09, (byte) 0x30,
+        (byte) 0x09, (byte) 0x31,
+        (byte) 0x09, (byte) 0x32,
+        (byte) 0x09, (byte) 0x35,
+        (byte) 0x15, (byte) 0x81,
+        (byte) 0x25, (byte) 0x7F,
+        (byte) 0x75, (byte) 0x08,
+        (byte) 0x95, (byte) 0x04,
+        (byte) 0x81, (byte) 0x02,
+        (byte) 0xC0
     };
 
     @Override
@@ -120,13 +118,14 @@ public class BluetoothHidPlugin extends Plugin {
                 @Override
                 public void onServiceConnected(int profile, BluetoothProfile proxy) {
                     hidDevice = (BluetoothHidDevice) proxy;
-                    Log.i(TAG, "BluetoothHidDevice proxy conectado");
+                    Log.i(TAG, "Perfil HID conectado");
                 }
+
                 @Override
                 public void onServiceDisconnected(int profile) {
                     hidDevice = null;
                     connected = false;
-                    Log.w(TAG, "BluetoothHidDevice proxy desconectado");
+                    Log.w(TAG, "Perfil HID desconectado");
                 }
             }, BluetoothProfile.HID_DEVICE);
         }
@@ -136,7 +135,7 @@ public class BluetoothHidPlugin extends Plugin {
     @PluginMethod
     public void scanDevices(PluginCall call) {
         if (adapter == null || !adapter.isEnabled()) {
-            call.reject("Bluetooth desligado ou indisponível");
+            call.reject("Bluetooth desligado ou indisponivel");
             return;
         }
         Set<BluetoothDevice> paired = adapter.getBondedDevices();
@@ -159,11 +158,11 @@ public class BluetoothHidPlugin extends Plugin {
     public void connect(PluginCall call) {
         String address = call.getString("address");
         if (address == null) {
-            call.reject("Endereço MAC não fornecido");
+            call.reject("Endereco MAC nao fornecido");
             return;
         }
         if (hidDevice == null) {
-            call.reject("Perfil HID não inicializado. Tente novamente.");
+            call.reject("Perfil HID nao inicializado. Tente novamente.");
             return;
         }
 
@@ -171,52 +170,50 @@ public class BluetoothHidPlugin extends Plugin {
             try {
                 targetDevice = adapter.getRemoteDevice(address);
 
-                // Registra o celular como dispositivo HID real
                 BluetoothHidDeviceAppSdpSettings sdp =
-                    new BluetoothHidDeviceAppSdpSettings(
-                        "Air Controller",
-                        "Controle HID via Bluetooth",
-                        "AirController",
-                        BluetoothHidDeviceAppSdpSettings.SUBCLASS1_COMBO,
-                        HID_DESCRIPTOR
-                    );
+                        new BluetoothHidDeviceAppSdpSettings(
+                                "Air Controller",
+                                "Controle HID via Bluetooth",
+                                "AirController",
+                                0x00,
+                                HID_DESCRIPTOR
+                        );
 
                 BluetoothHidDeviceAppQosSettings qosIn =
-                    new BluetoothHidDeviceAppQosSettings(
-                        BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
-                        800, 9, 0, 11250,
-                        BluetoothHidDeviceAppQosSettings.MAX
-                    );
+                        new BluetoothHidDeviceAppQosSettings(
+                                BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
+                                800, 9, 0, 11250, 0xffffffff
+                        );
 
                 BluetoothHidDeviceAppQosSettings qosOut =
-                    new BluetoothHidDeviceAppQosSettings(
-                        BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
-                        800, 9, 0, 11250,
-                        BluetoothHidDeviceAppQosSettings.MAX
-                    );
+                        new BluetoothHidDeviceAppQosSettings(
+                                BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
+                                800, 9, 0, 11250, 0xffffffff
+                        );
 
                 boolean registered = hidDevice.registerApp(
-                    sdp, qosIn, qosOut,
-                    getContext().getMainExecutor(),
-                    new BluetoothHidDevice.Callback() {
-                        @Override
-                        public void onAppStatusChanged(BluetoothDevice pluggedDevice, boolean registered) {
-                            Log.i(TAG, "App HID registrado: " + registered);
-                            if (registered) {
-                                hidDevice.connect(targetDevice);
+                        sdp, qosIn, qosOut,
+                        getContext().getMainExecutor(),
+                        new BluetoothHidDevice.Callback() {
+                            @Override
+                            public void onAppStatusChanged(BluetoothDevice pluggedDevice, boolean isRegistered) {
+                                Log.i(TAG, "App HID registrado: " + isRegistered);
+                                if (isRegistered && targetDevice != null) {
+                                    hidDevice.connect(targetDevice);
+                                }
+                            }
+
+                            @Override
+                            public void onConnectionStateChanged(BluetoothDevice device, int state) {
+                                if (state == BluetoothHidDevice.STATE_CONNECTED) {
+                                    connected = true;
+                                    Log.i(TAG, "CONECTADO: " + device.getName());
+                                } else if (state == BluetoothHidDevice.STATE_DISCONNECTED) {
+                                    connected = false;
+                                    Log.w(TAG, "DESCONECTADO");
+                                }
                             }
                         }
-                        @Override
-                        public void onConnectionStateChanged(BluetoothDevice device, int state) {
-                            if (state == BluetoothHidDevice.STATE_CONNECTED) {
-                                connected = true;
-                                Log.i(TAG, "CONECTADO ao projetor: " + device.getName());
-                            } else if (state == BluetoothHidDevice.STATE_DISCONNECTED) {
-                                connected = false;
-                                Log.w(TAG, "Desconectado do projetor");
-                            }
-                        }
-                    }
                 );
 
                 if (!registered) {
@@ -224,7 +221,6 @@ public class BluetoothHidPlugin extends Plugin {
                     return;
                 }
 
-                // Aguarda conexão (timeout 5s)
                 for (int i = 0; i < 50; i++) {
                     if (connected) break;
                     Thread.sleep(100);
@@ -235,7 +231,7 @@ public class BluetoothHidPlugin extends Plugin {
                 call.resolve(ret);
 
             } catch (Exception e) {
-                Log.e(TAG, "Erro na conexão", e);
+                Log.e(TAG, "Erro na conexao", e);
                 call.reject("Erro: " + e.getMessage());
             }
         }).start();
@@ -261,7 +257,7 @@ public class BluetoothHidPlugin extends Plugin {
     @PluginMethod
     public void sendKey(PluginCall call) {
         if (!connected || hidDevice == null || targetDevice == null) {
-            call.reject("Não conectado");
+            call.reject("Nao conectado");
             return;
         }
         int keyCode = call.getInt("keyCode", 0);
@@ -269,13 +265,12 @@ public class BluetoothHidPlugin extends Plugin {
 
         new Thread(() -> {
             try {
-                byte[] report = new byte[8]; // [modifier, reserved, key1..key6]
+                byte[] report = new byte[8];
                 if ("DOWN".equals(action)) {
                     report[0] = (byte) getModifier(keyCode);
                     report[2] = (byte) androidKeyToHid(keyCode);
                 }
                 hidDevice.sendReport(targetDevice, 1, report);
-
                 JSObject ret = new JSObject();
                 ret.put("success", true);
                 call.resolve(ret);
@@ -289,7 +284,7 @@ public class BluetoothHidPlugin extends Plugin {
     @PluginMethod
     public void sendMouse(PluginCall call) {
         if (!connected || hidDevice == null || targetDevice == null) {
-            call.reject("Não conectado");
+            call.reject("Nao conectado");
             return;
         }
         int dx = call.getInt("dx", 0);
@@ -298,13 +293,12 @@ public class BluetoothHidPlugin extends Plugin {
 
         new Thread(() -> {
             try {
-                byte[] report = new byte[4]; // [buttons, X, Y, wheel]
+                byte[] report = new byte[4];
                 report[0] = (byte) buttons;
                 report[1] = (byte) dx;
                 report[2] = (byte) dy;
                 report[3] = 0;
                 hidDevice.sendReport(targetDevice, 2, report);
-
                 JSObject ret = new JSObject();
                 ret.put("success", true);
                 call.resolve(ret);
@@ -318,7 +312,7 @@ public class BluetoothHidPlugin extends Plugin {
     @PluginMethod
     public void sendGamepad(PluginCall call) {
         if (!connected || hidDevice == null || targetDevice == null) {
-            call.reject("Não conectado");
+            call.reject("Nao conectado");
             return;
         }
         int buttons = call.getInt("buttons", 0);
@@ -329,7 +323,7 @@ public class BluetoothHidPlugin extends Plugin {
 
         new Thread(() -> {
             try {
-                byte[] report = new byte[6]; // [buttons, LX, LY, RX, RY]
+                byte[] report = new byte[6];
                 report[0] = (byte) (buttons & 0xFF);
                 report[1] = (byte) ((buttons >> 8) & 0xFF);
                 report[2] = (byte) lx;
@@ -337,7 +331,6 @@ public class BluetoothHidPlugin extends Plugin {
                 report[4] = (byte) rx;
                 report[5] = (byte) ry;
                 hidDevice.sendReport(targetDevice, 3, report);
-
                 JSObject ret = new JSObject();
                 ret.put("success", true);
                 call.resolve(ret);
@@ -347,68 +340,68 @@ public class BluetoothHidPlugin extends Plugin {
         }).start();
     }
 
-    // ========== MAPEAMENTO ANDROID KEYCODE → HID ==========
+    // ========== MAPEAMENTO ANDROID KEYCODE -> HID USAGE ==========
     private int androidKeyToHid(int keyCode) {
         switch (keyCode) {
-            case 29: return 0x04; // A
-            case 30: return 0x05; // B
-            case 31: return 0x06; // C
-            case 32: return 0x07; // D
-            case 33: return 0x08; // E
-            case 34: return 0x09; // F
-            case 35: return 0x0A; // G
-            case 36: return 0x0B; // H
-            case 37: return 0x0C; // I
-            case 38: return 0x0D; // J
-            case 39: return 0x0E; // K
-            case 40: return 0x0F; // L
-            case 41: return 0x10; // M
-            case 42: return 0x11; // N
-            case 43: return 0x12; // O
-            case 44: return 0x13; // P
-            case 45: return 0x14; // Q
-            case 46: return 0x15; // R
-            case 47: return 0x16; // S
-            case 48: return 0x17; // T
-            case 49: return 0x18; // U
-            case 50: return 0x19; // V
-            case 51: return 0x1A; // W
-            case 52: return 0x1B; // X
-            case 53: return 0x1C; // Y
-            case 54: return 0x1D; // Z
-            case 7:  return 0x27; // 0
-            case 8:  return 0x1E; // 1
-            case 9:  return 0x1F; // 2
-            case 10: return 0x20; // 3
-            case 11: return 0x21; // 4
-            case 12: return 0x22; // 5
-            case 13: return 0x23; // 6
-            case 14: return 0x24; // 7
-            case 15: return 0x25; // 8
-            case 16: return 0x26; // 9
-            case 62: return 0x2C; // ESPAÇO
-            case 66: return 0x28; // ENTER
-            case 67: return 0x2A; // BACKSPACE
-            case 61: return 0x2B; // TAB
-            case 55: return 0x36; // VÍRGULA
-            case 56: return 0x37; // PONTO
-            case 77: return 0x1F; // @
-            case 19: return 0x52; // SETA CIMA
-            case 20: return 0x51; // SETA BAIXO
-            case 21: return 0x50; // SETA ESQUERDA
-            case 22: return 0x4F; // SETA DIREITA
-            case 4:  return 0x29; // BACK (ESC)
-            case 3:  return 0x29; // HOME (ESC)
-            case 23: return 0x28; // DPAD CENTER (ENTER)
-            case 24: return 0x80; // VOLUME UP
-            case 25: return 0x81; // VOLUME DOWN
-            case 26: return 0x30; // POWER
+            case 29: return 0x04;
+            case 30: return 0x05;
+            case 31: return 0x06;
+            case 32: return 0x07;
+            case 33: return 0x08;
+            case 34: return 0x09;
+            case 35: return 0x0A;
+            case 36: return 0x0B;
+            case 37: return 0x0C;
+            case 38: return 0x0D;
+            case 39: return 0x0E;
+            case 40: return 0x0F;
+            case 41: return 0x10;
+            case 42: return 0x11;
+            case 43: return 0x12;
+            case 44: return 0x13;
+            case 45: return 0x14;
+            case 46: return 0x15;
+            case 47: return 0x16;
+            case 48: return 0x17;
+            case 49: return 0x18;
+            case 50: return 0x19;
+            case 51: return 0x1A;
+            case 52: return 0x1B;
+            case 53: return 0x1C;
+            case 54: return 0x1D;
+            case 7:  return 0x27;
+            case 8:  return 0x1E;
+            case 9:  return 0x1F;
+            case 10: return 0x20;
+            case 11: return 0x21;
+            case 12: return 0x22;
+            case 13: return 0x23;
+            case 14: return 0x24;
+            case 15: return 0x25;
+            case 16: return 0x26;
+            case 62: return 0x2C;
+            case 66: return 0x28;
+            case 67: return 0x2A;
+            case 61: return 0x2B;
+            case 55: return 0x36;
+            case 56: return 0x37;
+            case 77: return 0x1F;
+            case 19: return 0x52;
+            case 20: return 0x51;
+            case 21: return 0x50;
+            case 22: return 0x4F;
+            case 4:  return 0x29;
+            case 3:  return 0x29;
+            case 23: return 0x28;
+            case 24: return 0x80;
+            case 25: return 0x81;
+            case 26: return 0x30;
             default: return 0x00;
         }
     }
 
     private int getModifier(int keyCode) {
-        if (keyCode == 59) return 0x02; // Shift esquerdo
+        if (keyCode == 59) return 0x02;
         return 0x00;
     }
 }
