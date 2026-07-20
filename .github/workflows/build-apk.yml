@@ -4,6 +4,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -23,13 +26,13 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Instalar dependências
+      - name: Instalar dependencias
         run: npm install
 
       - name: Remover android antigo se existir
         run: rm -rf android
 
-      - name: Gerar projeto Android (cria gradlew automaticamente)
+      - name: Gerar projeto Android
         run: npx cap add android
 
       - name: Copiar plugin nativo HID
@@ -41,21 +44,23 @@ jobs:
         run: |
           sed -i 's/super\.onCreate(savedInstanceState);/registerPlugin(BluetoothHidPlugin.class);\n        super.onCreate(savedInstanceState);/' android/app/src/main/java/com/aircontroller/MainActivity.java
 
-      - name: Adicionar permissões Bluetooth no Manifest
+      - name: Adicionar permissoes Bluetooth no Manifest
         run: |
           sed -i '/<application/i\    <uses-permission android:name="android.permission.BLUETOOTH" />\n    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />\n    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />\n    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' android/app/src/main/AndroidManifest.xml
 
       - name: Sincronizar assets web
         run: npx cap sync android
 
-      - name: Dar permissão ao gradlew
+      - name: Dar permissao ao gradlew
         run: chmod +x android/gradlew
 
       - name: Build APK
         run: cd android && ./gradlew assembleDebug
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Publicar APK na Release permanente
+        uses: softprops/action-gh-release@v2
         with:
-          name: air-controller-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          tag_name: v1.0.${{ github.run_number }}
+          name: Air Controller v1.0.${{ github.run_number }}
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+          make_latest: true
