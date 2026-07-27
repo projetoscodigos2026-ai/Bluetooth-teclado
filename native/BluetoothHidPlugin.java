@@ -1,5 +1,6 @@
 package com.aircontroller;
 
+import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHidDevice;
@@ -10,14 +11,27 @@ import android.util.Log;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-@CapacitorPlugin(name = "BluetoothHID")
+@CapacitorPlugin(
+    name = "BluetoothHID",
+    permissions = {
+        @Permission(
+            strings = { Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN },
+            alias = "bluetooth"
+        )
+    }
+)
 public class BluetoothHidPlugin extends Plugin {
 
     private static final String TAG = "BluetoothHID";
@@ -27,7 +41,16 @@ public class BluetoothHidPlugin extends Plugin {
     private BluetoothDevice targetDevice;
     private boolean connected = false;
 
+    // Fila serial: garante que sendKey/sendMouse/sendGamepad/sendConsumer
+    // nunca disparem em paralelo brigando pelo canal HID.
+    private final ExecutorService hidExecutor = Executors.newSingleThreadExecutor();
+
+    // Report ID 1 = Teclado (8 bytes: modifier, reserved, 6 keys)
+    // Report ID 2 = Mouse   (4 bytes: buttons+pad, X, Y, Wheel)
+    // Report ID 3 = Gamepad (5 bytes: buttons(1 byte=8 botoes), lx, ly, rx, ry)
+    // Report ID 4 = Consumer Control (2 bytes: usage code 16-bit) -> HOME / POWER / VOLUME
     private static final byte[] HID_DESCRIPTOR = {
+        // ===== TECLADO (Report ID 1) =====
         (byte) 0x05, (byte) 0x01,
         (byte) 0x09, (byte) 0x06,
         (byte) 0xA1, (byte) 0x01,
@@ -52,6 +75,8 @@ public class BluetoothHidPlugin extends Plugin {
         (byte) 0x29, (byte) 0x65,
         (byte) 0x81, (byte) 0x00,
         (byte) 0xC0,
+
+        // ===== MOUSE (Report ID 2) — 4 bytes reais: botoes, X, Y, Wheel =====
         (byte) 0x05, (byte) 0x01,
         (byte) 0x09, (byte) 0x02,
         (byte) 0xA1, (byte) 0x01,
@@ -77,8 +102,16 @@ public class BluetoothHidPlugin extends Plugin {
         (byte) 0x75, (byte) 0x08,
         (byte) 0x95, (byte) 0x02,
         (byte) 0x81, (byte) 0x06,
+        (byte) 0x09, (byte) 0x38,
+        (byte) 0x15, (byte) 0x81,
+        (byte) 0x25, (byte) 0x7F,
+        (byte) 0x75, (byte) 0x08,
+        (byte) 0x95, (byte) 0x01,
+        (byte) 0x81, (byte) 0x06,
         (byte) 0xC0,
         (byte) 0xC0,
+
+        // ===== GAMEPAD (Report ID 3) — 5 bytes: 1 byte botoes(8) + lx+ly+rx+ry =====
         (byte) 0x05, (byte) 0x01,
         (byte) 0x09, (byte) 0x05,
         (byte) 0xA1, (byte) 0x01,
@@ -101,8 +134,28 @@ public class BluetoothHidPlugin extends Plugin {
         (byte) 0x75, (byte) 0x08,
         (byte) 0x95, (byte) 0x04,
         (byte) 0x81, (byte) 0x02,
+        (byte) 0xC0,
+
+        // ===== CONSUMER CONTROL (Report ID 4) — HOME / POWER / VOLUME =====
+        (byte) 0x05, (byte) 0x0C,
+        (byte) 0x09, (byte) 0x01,
+        (byte) 0xA1, (byte) 0x01,
+        (byte) 0x85, (byte) 0x04,
+        (byte) 0x15, (byte) 0x00,
+        (byte) 0x26, (byte) 0xFF, (byte) 0x03,
+        (byte) 0x19, (byte) 0x00,
+        (byte) 0x2A, (byte) 0xFF, (byte) 0x03,
+        (byte) 0x75, (byte) 0x10,
+        (byte) 0x95, (byte) 0x01,
+        (byte) 0x81, (byte) 0x00,
         (byte) 0xC0
     };
+
+    // Usage codes da pagina Consumer (0x0C) usados pelo app JS:
+    // HOME  = 0x0223 (AC Home)
+    // POWER = 0x0030 (Power)
+    // VOL+  = 0x00E9 (Volume Increment)
+    // VOL-  = 0x00EA (Volume Decrement)
 
     @Override
     public void load() {
@@ -126,27 +179,52 @@ public class BluetoothHidPlugin extends Plugin {
 
     @PluginMethod
     public void scanDevices(PluginCall call) {
+        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+            requestPermissionForAlias("bluetooth", call, "btPermissionCallback");
+            return;
+        }
+        scanInternal(call);
+    }
+
+    @PermissionCallback
+    private void btPermissionCallback(PluginCall call) {
+        if (getPermissionState("bluetooth") == PermissionState.GRANTED) {
+            scanInternal(call);
+        } else {
+            call.reject("Permissao de Bluetooth negada. Ative em Ajustes > Apps > Air Controller > Permissoes.");
+        }
+    }
+
+    private void scanInternal(PluginCall call) {
         if (adapter == null || !adapter.isEnabled()) {
             call.reject("Bluetooth desligado");
             return;
         }
-        Set<BluetoothDevice> paired = adapter.getBondedDevices();
-        JSArray devices = new JSArray();
-        if (paired != null) {
-            for (BluetoothDevice dev : paired) {
-                JSObject obj = new JSObject();
-                obj.put("name", dev.getName() != null ? dev.getName() : "Dispositivo");
-                obj.put("address", dev.getAddress());
-                devices.put(obj);
+        try {
+            Set<BluetoothDevice> paired = adapter.getBondedDevices();
+            JSArray devices = new JSArray();
+            if (paired != null) {
+                for (BluetoothDevice dev : paired) {
+                    JSObject obj = new JSObject();
+                    obj.put("name", dev.getName() != null ? dev.getName() : "Dispositivo");
+                    obj.put("address", dev.getAddress());
+                    devices.put(obj);
+                }
             }
+            JSObject ret = new JSObject();
+            ret.put("devices", devices);
+            call.resolve(ret);
+        } catch (SecurityException e) {
+            call.reject("Permissao de Bluetooth nao concedida: " + e.getMessage());
         }
-        JSObject ret = new JSObject();
-        ret.put("devices", devices);
-        call.resolve(ret);
     }
 
     @PluginMethod
     public void connect(PluginCall call) {
+        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+            call.reject("Permissao de Bluetooth nao concedida. Toque em Parear novamente.");
+            return;
+        }
         String address = call.getString("address");
         if (address == null) {
             call.reject("MAC nao fornecido");
@@ -157,7 +235,7 @@ public class BluetoothHidPlugin extends Plugin {
             return;
         }
 
-        new Thread(() -> {
+        hidExecutor.submit(() -> {
             try {
                 targetDevice = adapter.getRemoteDevice(address);
 
@@ -190,7 +268,11 @@ public class BluetoothHidPlugin extends Plugin {
                             public void onAppStatusChanged(BluetoothDevice pluggedDevice, boolean isRegistered) {
                                 Log.i(TAG, "Registrado: " + isRegistered);
                                 if (isRegistered && targetDevice != null) {
-                                    hidDevice.connect(targetDevice);
+                                    try {
+                                        hidDevice.connect(targetDevice);
+                                    } catch (SecurityException se) {
+                                        Log.e(TAG, "Sem permissao para conectar", se);
+                                    }
                                 }
                             }
 
@@ -220,11 +302,14 @@ public class BluetoothHidPlugin extends Plugin {
                 ret.put("success", connected);
                 call.resolve(ret);
 
+            } catch (SecurityException se) {
+                Log.e(TAG, "Permissao negada", se);
+                call.reject("Permissao negada: " + se.getMessage());
             } catch (Exception e) {
                 Log.e(TAG, "Erro", e);
                 call.reject("Erro: " + e.getMessage());
             }
-        }).start();
+        });
     }
 
     @PluginMethod
@@ -251,7 +336,7 @@ public class BluetoothHidPlugin extends Plugin {
         int keyCode = call.getInt("keyCode", 0);
         String action = call.getString("action", "UP");
 
-        new Thread(() -> {
+        hidExecutor.submit(() -> {
             try {
                 byte[] report = new byte[8];
                 if ("DOWN".equals(action)) {
@@ -262,10 +347,12 @@ public class BluetoothHidPlugin extends Plugin {
                 JSObject ret = new JSObject();
                 ret.put("success", true);
                 call.resolve(ret);
+            } catch (SecurityException se) {
+                call.reject("Permissao negada: " + se.getMessage());
             } catch (Exception e) {
                 call.reject("Erro: " + e.getMessage());
             }
-        }).start();
+        });
     }
 
     @PluginMethod
@@ -276,23 +363,26 @@ public class BluetoothHidPlugin extends Plugin {
         }
         int dx = call.getInt("dx", 0);
         int dy = call.getInt("dy", 0);
+        int wheel = call.getInt("wheel", 0);
         int buttons = call.getInt("buttons", 0);
 
-        new Thread(() -> {
+        hidExecutor.submit(() -> {
             try {
                 byte[] report = new byte[4];
                 report[0] = (byte) buttons;
                 report[1] = (byte) dx;
                 report[2] = (byte) dy;
-                report[3] = 0;
+                report[3] = (byte) wheel;
                 hidDevice.sendReport(targetDevice, 2, report);
                 JSObject ret = new JSObject();
                 ret.put("success", true);
                 call.resolve(ret);
+            } catch (SecurityException se) {
+                call.reject("Permissao negada: " + se.getMessage());
             } catch (Exception e) {
                 call.reject("Erro: " + e.getMessage());
             }
-        }).start();
+        });
     }
 
     @PluginMethod
@@ -307,23 +397,52 @@ public class BluetoothHidPlugin extends Plugin {
         int rx = call.getInt("rx", 0);
         int ry = call.getInt("ry", 0);
 
-        new Thread(() -> {
+        hidExecutor.submit(() -> {
             try {
-                byte[] report = new byte[6];
+                byte[] report = new byte[5];
                 report[0] = (byte) (buttons & 0xFF);
-                report[1] = (byte) ((buttons >> 8) & 0xFF);
-                report[2] = (byte) lx;
-                report[3] = (byte) ly;
-                report[4] = (byte) rx;
-                report[5] = (byte) ry;
+                report[1] = (byte) lx;
+                report[2] = (byte) ly;
+                report[3] = (byte) rx;
+                report[4] = (byte) ry;
                 hidDevice.sendReport(targetDevice, 3, report);
                 JSObject ret = new JSObject();
                 ret.put("success", true);
                 call.resolve(ret);
+            } catch (SecurityException se) {
+                call.reject("Permissao negada: " + se.getMessage());
             } catch (Exception e) {
                 call.reject("Erro: " + e.getMessage());
             }
-        }).start();
+        });
+    }
+
+    @PluginMethod
+    public void sendConsumer(PluginCall call) {
+        if (!connected || hidDevice == null || targetDevice == null) {
+            call.reject("Nao conectado");
+            return;
+        }
+        int usage = call.getInt("usage", 0);
+        String action = call.getString("action", "UP");
+
+        hidExecutor.submit(() -> {
+            try {
+                byte[] report = new byte[2];
+                if ("DOWN".equals(action)) {
+                    report[0] = (byte) (usage & 0xFF);
+                    report[1] = (byte) ((usage >> 8) & 0xFF);
+                }
+                hidDevice.sendReport(targetDevice, 4, report);
+                JSObject ret = new JSObject();
+                ret.put("success", true);
+                call.resolve(ret);
+            } catch (SecurityException se) {
+                call.reject("Permissao negada: " + se.getMessage());
+            } catch (Exception e) {
+                call.reject("Erro: " + e.getMessage());
+            }
+        });
     }
 
     private int androidKeyToHid(int keyCode) {
@@ -370,23 +489,20 @@ public class BluetoothHidPlugin extends Plugin {
             case 61: return 0x2B;
             case 55: return 0x36;
             case 56: return 0x37;
-            case 77: return 0x1F;
+            case 77: return 0x1F; // @ = mesma tecla fisica do "2", com Shift (ver getModifier)
             case 19: return 0x52;
             case 20: return 0x51;
             case 21: return 0x50;
             case 22: return 0x4F;
-            case 4:  return 0x29;
-            case 3:  return 0x29;
+            case 4:  return 0x29; // VOLTAR = Escape
             case 23: return 0x28;
-            case 24: return 0x80;
-            case 25: return 0x81;
-            case 26: return 0x30;
             default: return 0x00;
         }
     }
 
     private int getModifier(int keyCode) {
-        if (keyCode == 59) return 0x02;
+        if (keyCode == 59) return 0x02; // Shift segurando
+        if (keyCode == 77) return 0x02; // @ precisa de Shift+2
         return 0x00;
     }
 }
