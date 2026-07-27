@@ -40,6 +40,7 @@ public class BluetoothHidPlugin extends Plugin {
     private BluetoothHidDevice hidDevice;
     private BluetoothDevice targetDevice;
     private boolean connected = false;
+    private volatile boolean appRegistered = false;
 
     // Fila serial: garante que sendKey/sendMouse/sendGamepad/sendConsumer
     // nunca disparem em paralelo brigando pelo canal HID.
@@ -238,68 +239,91 @@ public class BluetoothHidPlugin extends Plugin {
         hidExecutor.submit(() -> {
             try {
                 targetDevice = adapter.getRemoteDevice(address);
+                connected = false;
 
-                BluetoothHidDeviceAppSdpSettings sdp =
-                        new BluetoothHidDeviceAppSdpSettings(
-                                "Air Controller",
-                                "Controle HID Bluetooth",
-                                "AirController",
-                                (byte) 0x00,
-                                HID_DESCRIPTOR
-                        );
+                if (appRegistered) {
+                    // Ja registramos o app HID antes (ex: reconexao). So pedir a conexao.
+                    try {
+                        hidDevice.connect(targetDevice);
+                    } catch (SecurityException se) {
+                        call.reject("Permissao negada: " + se.getMessage());
+                        return;
+                    }
+                } else {
+                    BluetoothHidDeviceAppSdpSettings sdp =
+                            new BluetoothHidDeviceAppSdpSettings(
+                                    "Air Controller",
+                                    "Controle HID Bluetooth",
+                                    "AirController",
+                                    (byte) 0x00,
+                                    HID_DESCRIPTOR
+                            );
 
-                BluetoothHidDeviceAppQosSettings qosIn =
-                        new BluetoothHidDeviceAppQosSettings(
-                                BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
-                                800, 9, 0, 11250, 0xffffffff
-                        );
+                    BluetoothHidDeviceAppQosSettings qosIn =
+                            new BluetoothHidDeviceAppQosSettings(
+                                    BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
+                                    800, 9, 0, 11250, 0xffffffff
+                            );
 
-                BluetoothHidDeviceAppQosSettings qosOut =
-                        new BluetoothHidDeviceAppQosSettings(
-                                BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
-                                800, 9, 0, 11250, 0xffffffff
-                        );
+                    BluetoothHidDeviceAppQosSettings qosOut =
+                            new BluetoothHidDeviceAppQosSettings(
+                                    BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
+                                    800, 9, 0, 11250, 0xffffffff
+                            );
 
-                boolean registered = hidDevice.registerApp(
-                        sdp, qosIn, qosOut,
-                        getContext().getMainExecutor(),
-                        new BluetoothHidDevice.Callback() {
-                            @Override
-                            public void onAppStatusChanged(BluetoothDevice pluggedDevice, boolean isRegistered) {
-                                Log.i(TAG, "Registrado: " + isRegistered);
-                                if (isRegistered && targetDevice != null) {
-                                    try {
-                                        hidDevice.connect(targetDevice);
-                                    } catch (SecurityException se) {
-                                        Log.e(TAG, "Sem permissao para conectar", se);
+                    boolean registered = hidDevice.registerApp(
+                            sdp, qosIn, qosOut,
+                            getContext().getMainExecutor(),
+                            new BluetoothHidDevice.Callback() {
+                                @Override
+                                public void onAppStatusChanged(BluetoothDevice pluggedDevice, boolean isRegistered) {
+                                    Log.i(TAG, "Registrado: " + isRegistered);
+                                    appRegistered = isRegistered;
+                                    if (isRegistered && targetDevice != null) {
+                                        try {
+                                            hidDevice.connect(targetDevice);
+                                        } catch (SecurityException se) {
+                                            Log.e(TAG, "Sem permissao para conectar", se);
+                                        }
                                     }
                                 }
-                            }
 
-                            @Override
-                            public void onConnectionStateChanged(BluetoothDevice device, int state) {
-                                if (state == BluetoothHidDevice.STATE_CONNECTED) {
-                                    connected = true;
-                                    Log.i(TAG, "CONECTADO: " + device.getName());
-                                } else if (state == BluetoothHidDevice.STATE_DISCONNECTED) {
-                                    connected = false;
+                                @Override
+                                public void onConnectionStateChanged(BluetoothDevice device, int state) {
+                                    JSObject data = new JSObject();
+                                    if (state == BluetoothHidDevice.STATE_CONNECTED) {
+                                        connected = true;
+                                        data.put("connected", true);
+                                        data.put("name", device.getName());
+                                        Log.i(TAG, "CONECTADO: " + device.getName());
+                                    } else if (state == BluetoothHidDevice.STATE_DISCONNECTED) {
+                                        connected = false;
+                                        data.put("connected", false);
+                                    } else {
+                                        return;
+                                    }
+                                    notifyListeners("hidConnectionChanged", data);
                                 }
                             }
-                        }
-                );
+                    );
 
-                if (!registered) {
-                    call.reject("Falha ao registrar HID");
-                    return;
+                    if (!registered) {
+                        call.reject("Falha ao registrar HID");
+                        return;
+                    }
                 }
 
-                for (int i = 0; i < 50; i++) {
+                // Espera ate 8s pela confirmacao de conexao (registro + pareamento podem demorar).
+                for (int i = 0; i < 80; i++) {
                     if (connected) break;
                     Thread.sleep(100);
                 }
 
                 JSObject ret = new JSObject();
                 ret.put("success", connected);
+                if (!connected) {
+                    ret.put("message", "Tempo esgotado esperando o dispositivo aceitar a conexao");
+                }
                 call.resolve(ret);
 
             } catch (SecurityException se) {
@@ -335,12 +359,14 @@ public class BluetoothHidPlugin extends Plugin {
         }
         int keyCode = call.getInt("keyCode", 0);
         String action = call.getString("action", "UP");
+        boolean shift = Boolean.TRUE.equals(call.getBoolean("shift", false));
 
         hidExecutor.submit(() -> {
             try {
                 byte[] report = new byte[8];
                 if ("DOWN".equals(action)) {
-                    report[0] = (byte) getModifier(keyCode);
+                    int modifier = getModifier(keyCode) | (shift ? 0x02 : 0x00);
+                    report[0] = (byte) modifier;
                     report[2] = (byte) androidKeyToHid(keyCode);
                 }
                 hidDevice.sendReport(targetDevice, 1, report);
