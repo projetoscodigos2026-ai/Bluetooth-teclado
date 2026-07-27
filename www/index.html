@@ -13,7 +13,8 @@
             --green: #00ff66;
             --yellow: #ffcc00;
             --text: #ffffff;
-            --key-bg: #1f293d;
+            --key-bg: #1b2436;
+            --key-bg-2: #232f47;
         }
         * {
             box-sizing: border-box;
@@ -21,86 +22,103 @@
             -webkit-user-select: none;
             margin: 0; padding: 0;
             font-family: 'Segoe UI', system-ui, sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
-        body {
+        html, body {
             background: var(--bg);
             color: var(--text);
-            height: 100vh; width: 100vw;
+            height: 100%; width: 100%;
             overflow: hidden;
-            display: flex; flex-direction: column;
         }
+        body { display: flex; flex-direction: column; }
 
         /* === HEADER === */
         header {
-            height: 50px;
+            height: 52px; flex-shrink: 0;
             background: rgba(255,255,255,0.03);
             border-bottom: 1px solid rgba(0,240,255,0.2);
             display: flex; justify-content: space-between; align-items: center;
-            padding: 0 12px;
+            padding: 0 10px; gap: 6px;
         }
-        .bt-status { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: bold; }
+        .bt-status { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: bold; min-width: 0; }
         .dot {
-            width: 10px; height: 10px; border-radius: 50%;
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
             background: #ff3333; box-shadow: 0 0 8px #ff3333;
             transition: all 0.3s;
         }
-        .dot.connected { background: var(--green); box-shadow: 0 0 10px var(--green); }
+        .dot.connecting { background: var(--yellow); box-shadow: 0 0 10px var(--yellow); animation: pulse 1s infinite; }
+        .dot.connected { background: var(--green); box-shadow: 0 0 10px var(--green); animation: none; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+        #statusText { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
         .btn-bt {
             background: rgba(0,240,255,0.1); border: 1px solid var(--blue);
-            color: var(--blue); padding: 6px 14px; border-radius: 15px;
-            font-size: 11px; font-weight: bold; cursor: pointer;
+            color: var(--blue); padding: 7px 12px; border-radius: 15px;
+            font-size: 11px; font-weight: bold; touch-action: manipulation; flex-shrink: 0;
         }
         .btn-bt:active { background: var(--blue); color: #000; }
         .btn-bt.disconnect { border-color: var(--neon); color: var(--neon); background: rgba(255,0,85,0.1); }
+        .btn-bt:disabled { opacity: 0.5; }
 
-        .mode-tabs { display: flex; gap: 4px; }
+        .mode-tabs { display: flex; gap: 4px; flex-shrink: 0; }
         .tab-btn {
             background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
-            color: rgba(255,255,255,0.5); padding: 6px 12px; border-radius: 8px;
-            font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;
+            color: rgba(255,255,255,0.5); padding: 7px 10px; border-radius: 8px;
+            font-size: 11px; font-weight: bold; transition: all 0.2s; touch-action: manipulation;
         }
         .tab-btn.active { background: var(--blue); color: #000; border-color: var(--blue); }
 
         /* === CONTAINER === */
-        #main { flex: 1; position: relative; overflow: hidden; }
+        #main { flex: 1; position: relative; overflow: hidden; min-height: 0; }
         .mode-panel {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            padding: 8px; display: flex; flex-direction: column;
-            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            padding: 6px; display: flex; flex-direction: column;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
         }
         .mode-panel.active { opacity: 1; pointer-events: all; }
 
         /* === TECLADO === */
+        .kb-toolbar { display: flex; gap: 6px; margin-bottom: 6px; flex-shrink: 0; }
+        .btn-toggle {
+            flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.7); padding: 8px; border-radius: 8px;
+            font-size: 11px; font-weight: bold; touch-action: manipulation;
+        }
+        .btn-toggle.active { background: rgba(0,240,255,0.18); color: var(--blue); border-color: var(--blue); }
+
         .touchpad {
             flex: 1; background: var(--panel);
-            border: 1px solid rgba(0,240,255,0.3); border-radius: 10px;
+            border: 1px solid rgba(0,240,255,0.3); border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
-            color: rgba(255,255,255,0.3); font-size: 12px;
+            color: rgba(255,255,255,0.35); font-size: 12px; text-align: center; padding: 10px;
             touch-action: none; margin-bottom: 6px; position: relative;
+            min-height: 60px;
         }
         .touchpad-hint {
             position: absolute; bottom: 8px; right: 10px;
             font-size: 10px; color: rgba(255,255,255,0.2);
         }
-        .keyboard { display: flex; flex-direction: column; gap: 3px; }
-        .row { display: flex; gap: 3px; justify-content: center; }
+        .keyboard { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+        .row { display: flex; gap: 4px; justify-content: center; }
+        .extras-row { display: none; }
+        .extras-row.show { display: flex; }
         .key {
-            background: var(--key-bg); border: 1px solid rgba(255,255,255,0.08);
-            color: #fff; flex: 1; height: 34px;
+            background: var(--key-bg); border: 1px solid rgba(255,255,255,0.06);
+            color: #fff; flex: 1; height: 40px;
             display: flex; align-items: center; justify-content: center;
-            border-radius: 5px; font-size: 11px; font-weight: bold;
+            border-radius: 7px; font-size: 13px; font-weight: bold;
             touch-action: manipulation; transition: background 0.1s;
         }
         .key:active { background: var(--blue); color: #000; }
-        .key-nav { background: rgba(0,255,102,0.15); color: var(--green); font-size: 13px; }
-        .key-action { background: rgba(0,240,255,0.15); color: var(--blue); }
+        .key-nav { background: rgba(0,255,102,0.12); color: var(--green); font-size: 13px; }
+        .key-action { background: var(--key-bg-2); color: var(--blue); }
         .key-enter { background: var(--blue); color: #000; }
-        .key-vol { background: rgba(255,204,0,0.15); color: var(--yellow); }
+        .key-vol { background: rgba(255,204,0,0.12); color: var(--yellow); }
+        .key-shift.shift-on { background: var(--blue); color: #000; box-shadow: 0 0 10px var(--blue); }
 
         /* === JOYSTICK === */
         .joystick-layout {
             flex: 1; display: flex; justify-content: space-between;
-            align-items: center; padding: 10px 20px;
+            align-items: center; padding: 10px 20px; min-height: 0;
         }
         .analog-container {
             width: 130px; height: 130px;
@@ -141,18 +159,18 @@
         .btn-a { grid-column: 2; grid-row: 3; background: var(--green); color: #000; }
 
         .sys-row {
-            display: flex; justify-content: center; gap: 10px;
-            padding: 8px 0;
+            display: flex; justify-content: center; gap: 8px;
+            padding: 8px 0; flex-shrink: 0;
         }
         .btn-sys {
             background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
-            color: #fff; padding: 8px 16px; border-radius: 20px;
+            color: #fff; padding: 8px 14px; border-radius: 20px;
             font-size: 11px; font-weight: bold; touch-action: manipulation;
         }
         .btn-sys:active { background: var(--blue); color: #000; }
 
         .shoulder-row {
-            display: flex; justify-content: space-between; padding: 0 20px 5px;
+            display: flex; justify-content: space-between; padding: 0 20px 5px; flex-shrink: 0;
         }
         .btn-shoulder {
             background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
@@ -164,12 +182,35 @@
         /* === TOAST === */
         #toast {
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.9); border: 1px solid var(--blue);
+            background: rgba(0,0,0,0.92); border: 1px solid var(--blue);
             color: var(--blue); padding: 10px 20px; border-radius: 20px;
-            font-size: 12px; font-weight: bold; opacity: 0;
+            font-size: 12px; font-weight: bold; opacity: 0; max-width: 88%; text-align: center;
             transition: opacity 0.3s; pointer-events: none; z-index: 999;
         }
         #toast.show { opacity: 1; }
+
+        /* === DEVICE PICKER MODAL === */
+        #deviceModal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+        }
+        #deviceModal.show { display: flex; }
+        .modal-box {
+            background: var(--panel); border: 1px solid rgba(0,240,255,0.3);
+            border-radius: 14px; width: 100%; max-width: 340px; padding: 16px; max-height: 70vh; overflow-y: auto;
+        }
+        .modal-box h3 { color: var(--blue); font-size: 14px; margin-bottom: 10px; }
+        .device-item {
+            background: var(--key-bg); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px; padding: 12px; margin-bottom: 8px; font-size: 13px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .device-item:active { background: var(--blue); color: #000; }
+        .device-item small { opacity: 0.5; font-weight: normal; }
+        .modal-cancel {
+            width: 100%; margin-top: 4px; background: transparent; border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px; font-size: 12px; font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -178,26 +219,30 @@
     <div class="bt-status">
         <div class="dot" id="statusDot"></div>
         <span id="statusText">Desconectado</span>
-        <button class="btn-bt" id="btnBT">Parear</button>
     </div>
     <div class="mode-tabs">
         <button class="tab-btn active" data-mode="keyboard">⌨ Teclado</button>
         <button class="tab-btn" data-mode="joystick">🎮 Joystick</button>
     </div>
+    <button class="btn-bt" id="btnBT">Parear</button>
 </header>
 
 <div id="main">
 
     <!-- ====== MODO TECLADO + TOUCHPAD ====== -->
     <div class="mode-panel active" id="panel-keyboard">
+        <div class="kb-toolbar">
+            <button class="btn-toggle" id="toggleExtras">⋯ Navegação / Volume</button>
+        </div>
+
         <div class="touchpad" id="touchpad">
             Arraste = mover cursor &nbsp;|&nbsp; Toque rápido = clique
             <span class="touchpad-hint">2 dedos = scroll</span>
         </div>
 
         <div class="keyboard">
-            <!-- NAVEGAÇÃO ANDROID -->
-            <div class="row">
+            <!-- NAVEGAÇÃO ANDROID (escondida por padrão) -->
+            <div class="row extras-row" id="extrasRow">
                 <div class="key key-nav" data-key="4" style="flex:1.4;">⬅ VOLTAR</div>
                 <div class="key key-nav" data-key="3">🏠</div>
                 <div class="key key-nav" data-key="19">▲</div>
@@ -205,7 +250,8 @@
                 <div class="key key-nav" data-key="21">◀</div>
                 <div class="key key-nav" data-key="22">▶</div>
                 <div class="key key-nav" data-key="23" style="flex:1.2;">OK</div>
-                <div class="key key-nav" data-key="26">⏻</div>
+                <div class="key key-vol" data-key="24">🔊+</div>
+                <div class="key key-vol" data-key="25">🔉-</div>
             </div>
             <!-- NÚMEROS -->
             <div class="row">
@@ -217,36 +263,34 @@
             </div>
             <!-- QWERTY 1 -->
             <div class="row">
-                <div class="key" data-key="45">Q</div><div class="key" data-key="51">W</div>
-                <div class="key" data-key="33">E</div><div class="key" data-key="46">R</div>
-                <div class="key" data-key="48">T</div><div class="key" data-key="53">Y</div>
-                <div class="key" data-key="49">U</div><div class="key" data-key="37">I</div>
-                <div class="key" data-key="43">O</div><div class="key" data-key="44">P</div>
+                <div class="key letter-key" data-key="45">Q</div><div class="key letter-key" data-key="51">W</div>
+                <div class="key letter-key" data-key="33">E</div><div class="key letter-key" data-key="46">R</div>
+                <div class="key letter-key" data-key="48">T</div><div class="key letter-key" data-key="53">Y</div>
+                <div class="key letter-key" data-key="49">U</div><div class="key letter-key" data-key="37">I</div>
+                <div class="key letter-key" data-key="43">O</div><div class="key letter-key" data-key="44">P</div>
             </div>
             <!-- QWERTY 2 -->
             <div class="row">
-                <div class="key" data-key="29">A</div><div class="key" data-key="47">S</div>
-                <div class="key" data-key="32">D</div><div class="key" data-key="34">F</div>
-                <div class="key" data-key="35">G</div><div class="key" data-key="36">H</div>
-                <div class="key" data-key="38">J</div><div class="key" data-key="39">K</div>
-                <div class="key" data-key="40">L</div>
+                <div class="key letter-key" data-key="29">A</div><div class="key letter-key" data-key="47">S</div>
+                <div class="key letter-key" data-key="32">D</div><div class="key letter-key" data-key="34">F</div>
+                <div class="key letter-key" data-key="35">G</div><div class="key letter-key" data-key="36">H</div>
+                <div class="key letter-key" data-key="38">J</div><div class="key letter-key" data-key="39">K</div>
+                <div class="key letter-key" data-key="40">L</div>
                 <div class="key key-action" data-key="67">⌫</div>
             </div>
             <!-- QWERTY 3 + SHIFT -->
             <div class="row">
-                <div class="key key-action" data-key="59" style="flex:1.4;">⇧</div>
-                <div class="key" data-key="54">Z</div><div class="key" data-key="52">X</div>
-                <div class="key" data-key="31">C</div><div class="key" data-key="50">V</div>
-                <div class="key" data-key="30">B</div><div class="key" data-key="42">N</div>
-                <div class="key" data-key="41">M</div>
+                <div class="key key-action key-shift" id="shiftKey" style="flex:1.4;">⇧</div>
+                <div class="key letter-key" data-key="54">Z</div><div class="key letter-key" data-key="52">X</div>
+                <div class="key letter-key" data-key="31">C</div><div class="key letter-key" data-key="50">V</div>
+                <div class="key letter-key" data-key="30">B</div><div class="key letter-key" data-key="42">N</div>
+                <div class="key letter-key" data-key="41">M</div>
                 <div class="key" data-key="55">,</div>
                 <div class="key" data-key="56">.</div>
                 <div class="key" data-key="77">@</div>
             </div>
-            <!-- ESPAÇO + ENTER + VOLUME -->
+            <!-- ESPAÇO + ENTER + TAB -->
             <div class="row">
-                <div class="key key-vol" data-key="24">🔊+</div>
-                <div class="key key-vol" data-key="25">🔉-</div>
                 <div class="key" data-key="62" style="flex:3;">ESPAÇO</div>
                 <div class="key" data-key="61">TAB</div>
                 <div class="key key-enter" data-key="66" style="flex:1.5;">ENTER</div>
@@ -301,41 +345,39 @@
 
 <div id="toast"></div>
 
+<div id="deviceModal">
+    <div class="modal-box">
+        <h3>Escolha o dispositivo pareado</h3>
+        <div id="deviceList"></div>
+        <button class="modal-cancel" id="deviceCancel">Cancelar</button>
+    </div>
+</div>
+
 <script>
 // =============================================
 //  PONTE NATIVA (Capacitor → Java BluetoothHID)
 // =============================================
+const hasPlugin = () => !!(window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.BluetoothHID);
+
 const NativeHID = {
     async connect(macAddress) {
-        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
-            return await Capacitor.Plugins.BluetoothHID.connect({ address: macAddress });
-        }
-        showToast("Plugin HID não encontrado. Rode como APK.");
+        if (hasPlugin()) return await Capacitor.Plugins.BluetoothHID.connect({ address: macAddress });
+        throw new Error("Plugin HID não encontrado. Instale e abra o APK gerado, não use no navegador.");
     },
     async disconnect() {
-        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
-            return await Capacitor.Plugins.BluetoothHID.disconnect();
-        }
+        if (hasPlugin()) return await Capacitor.Plugins.BluetoothHID.disconnect();
     },
-    async sendKey(keyCode, action) {
-        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
-            return await Capacitor.Plugins.BluetoothHID.sendKey({ keyCode, action });
-        }
+    async sendKey(keyCode, action, shift) {
+        if (hasPlugin()) return await Capacitor.Plugins.BluetoothHID.sendKey({ keyCode, action, shift: !!shift });
     },
     async sendMouse(dx, dy, buttons) {
-        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
-            return await Capacitor.Plugins.BluetoothHID.sendMouse({ dx, dy, buttons });
-        }
+        if (hasPlugin()) return await Capacitor.Plugins.BluetoothHID.sendMouse({ dx, dy, buttons });
     },
     async sendGamepad(buttons, lx, ly, rx, ry) {
-        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
-            return await Capacitor.Plugins.BluetoothHID.sendGamepad({ buttons, lx, ly, rx, ry });
-        }
+        if (hasPlugin()) return await Capacitor.Plugins.BluetoothHID.sendGamepad({ buttons, lx, ly, rx, ry });
     },
     async scanDevices() {
-        if (window.Capacitor && Capacitor.Plugins.BluetoothHID) {
-            return await Capacitor.Plugins.BluetoothHID.scanDevices();
-        }
+        if (hasPlugin()) return await Capacitor.Plugins.BluetoothHID.scanDevices();
         return { devices: [] };
     }
 };
@@ -347,7 +389,8 @@ function showToast(msg) {
     const t = document.getElementById('toast');
     t.innerText = msg;
     t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2500);
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
 // =============================================
@@ -357,32 +400,109 @@ const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 const btnBT = document.getElementById('btnBT');
 let isConnected = false;
+let isBusy = false;
 
-btnBT.addEventListener('click', async () => {
-    if (!isConnected) {
-        showToast("Procurando dispositivos...");
-        const result = await NativeHID.scanDevices();
-        if (result.devices && result.devices.length > 0) {
-            const dev = result.devices[0];
-            const res = await NativeHID.connect(dev.address);
-            if (res.success) {
-                isConnected = true;
-                statusDot.classList.add('connected');
-                statusText.innerText = dev.name || "Conectado";
-                btnBT.innerText = "Desconectar";
-                btnBT.classList.add('disconnect');
-                showToast("Conectado: " + (dev.name || "Projetor"));
-            }
-        } else {
-            showToast("Nenhum dispositivo encontrado");
-        }
+function setConnected(connected, name) {
+    isConnected = connected;
+    statusDot.classList.remove('connecting');
+    if (connected) {
+        statusDot.classList.add('connected');
+        statusText.innerText = name || "Conectado";
+        btnBT.innerText = "Desconectar";
+        btnBT.classList.add('disconnect');
     } else {
-        await NativeHID.disconnect();
-        isConnected = false;
         statusDot.classList.remove('connected');
         statusText.innerText = "Desconectado";
         btnBT.innerText = "Parear";
         btnBT.classList.remove('disconnect');
+    }
+}
+
+function setBusy(busy, label) {
+    isBusy = busy;
+    btnBT.disabled = busy;
+    if (busy) {
+        statusDot.classList.add('connecting');
+        statusText.innerText = label || "Conectando...";
+    } else {
+        statusDot.classList.remove('connecting');
+    }
+}
+
+// Escuta eventos de conexão/desconexão vindos do lado nativo (ex: host desligou o Bluetooth)
+if (hasPlugin()) {
+    Capacitor.Plugins.BluetoothHID.addListener('hidConnectionChanged', (data) => {
+        setConnected(!!data.connected, data.name);
+        showToast(data.connected ? ("Conectado: " + (data.name || "dispositivo")) : "Bluetooth desconectado");
+    });
+}
+
+const deviceModal = document.getElementById('deviceModal');
+const deviceList = document.getElementById('deviceList');
+document.getElementById('deviceCancel').addEventListener('click', () => deviceModal.classList.remove('show'));
+
+async function doConnect(address, name) {
+    setBusy(true, "Conectando...");
+    try {
+        const res = await NativeHID.connect(address);
+        if (res && res.success) {
+            setConnected(true, name);
+            showToast("Conectado: " + (name || "dispositivo"));
+        } else {
+            setConnected(false);
+            showToast((res && res.message) || "Não foi possível conectar. Verifique se o dispositivo já está pareado nas configurações de Bluetooth do celular.");
+        }
+    } catch (err) {
+        setConnected(false);
+        showToast("Erro ao conectar: " + (err && err.message ? err.message : err));
+    } finally {
+        setBusy(false);
+    }
+}
+
+btnBT.addEventListener('click', async () => {
+    if (isBusy) return;
+
+    if (!isConnected) {
+        setBusy(true, "Procurando...");
+        try {
+            const result = await NativeHID.scanDevices();
+            setBusy(false);
+            const devices = (result && result.devices) || [];
+            if (devices.length === 0) {
+                showToast("Nenhum dispositivo pareado. Vá em Ajustes > Bluetooth do celular e pareie com o aparelho alvo primeiro.");
+                return;
+            }
+            if (devices.length === 1) {
+                await doConnect(devices[0].address, devices[0].name);
+                return;
+            }
+            // Mais de um dispositivo pareado: deixa o usuário escolher
+            deviceList.innerHTML = '';
+            devices.forEach(dev => {
+                const item = document.createElement('div');
+                item.className = 'device-item';
+                item.innerHTML = `<span>${dev.name || 'Dispositivo'}</span><small>${dev.address}</small>`;
+                item.addEventListener('click', () => {
+                    deviceModal.classList.remove('show');
+                    doConnect(dev.address, dev.name);
+                });
+                deviceList.appendChild(item);
+            });
+            deviceModal.classList.add('show');
+        } catch (err) {
+            setBusy(false);
+            showToast("Erro ao procurar: " + (err && err.message ? err.message : err));
+        }
+    } else {
+        setBusy(true, "Desconectando...");
+        try {
+            await NativeHID.disconnect();
+        } catch (err) {
+            showToast("Erro ao desconectar: " + (err && err.message ? err.message : err));
+        }
+        setConnected(false);
+        setBusy(false);
         showToast("Desconectado");
     }
 });
@@ -400,19 +520,55 @@ document.querySelectorAll('.tab-btn').forEach(tab => {
 });
 
 // =============================================
+//  ESCONDER/MOSTRAR LINHA DE NAVEGAÇÃO + VOLUME
+// =============================================
+const extrasRow = document.getElementById('extrasRow');
+const toggleExtras = document.getElementById('toggleExtras');
+toggleExtras.addEventListener('click', () => {
+    extrasRow.classList.toggle('show');
+    toggleExtras.classList.toggle('active');
+});
+
+// =============================================
+//  SHIFT PEGAJOSO (toque para ativar, toque de novo pra soltar)
+// =============================================
+let shiftActive = false;
+const shiftKey = document.getElementById('shiftKey');
+shiftKey.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    shiftActive = !shiftActive;
+    shiftKey.classList.toggle('shift-on', shiftActive);
+});
+
+function requireConnection() {
+    if (!isConnected) {
+        showToast("Conecte o Bluetooth primeiro (toque em Parear)");
+        return false;
+    }
+    return true;
+}
+
+// =============================================
 //  TECLADO — KeyDown / KeyUp real
 // =============================================
-document.querySelectorAll('.key, .dpad-btn:not(.dpad-empty)').forEach(key => {
+document.querySelectorAll('[data-key]').forEach(key => {
     const keyCode = parseInt(key.dataset.key);
     if (!keyCode) return;
 
     key.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        NativeHID.sendKey(keyCode, 'DOWN');
+        if (!requireConnection()) return;
+        NativeHID.sendKey(keyCode, 'DOWN', shiftActive && key.classList.contains('letter-key'));
     });
     key.addEventListener('touchend', (e) => {
         e.preventDefault();
-        NativeHID.sendKey(keyCode, 'UP');
+        if (!isConnected) return;
+        NativeHID.sendKey(keyCode, 'UP', false);
+        // Shift pegajoso solta depois de uma letra ser usada
+        if (shiftActive && key.classList.contains('letter-key')) {
+            shiftActive = false;
+            shiftKey.classList.remove('shift-on');
+        }
     });
 });
 
@@ -433,14 +589,14 @@ touchpad.addEventListener('touchstart', (e) => {
 
 touchpad.addEventListener('touchmove', (e) => {
     e.preventDefault();
+    if (!isConnected) return;
     tpMoved = true;
     const dx = e.touches[0].clientX - tpLastX;
     const dy = e.touches[0].clientY - tpLastY;
     tpLastX = e.touches[0].clientX;
     tpLastY = e.touches[0].clientY;
 
-    if (tpFingers === 2) {
-        NativeHID.sendMouse(0, 0, 0);
+    if (tpFingers >= 2) {
         NativeHID.sendMouse(0, Math.round(dy * 0.5), 0); // scroll
     } else {
         NativeHID.sendMouse(Math.round(dx * 1.5), Math.round(dy * 1.5), 0);
@@ -450,19 +606,21 @@ touchpad.addEventListener('touchmove', (e) => {
 touchpad.addEventListener('touchend', (e) => {
     e.preventDefault();
     if (!tpMoved && (Date.now() - tpStartTime) < 200) {
+        if (!requireConnection()) return;
         NativeHID.sendMouse(0, 0, 1); // clique esquerdo
         setTimeout(() => NativeHID.sendMouse(0, 0, 0), 50);
     }
 });
 
 // =============================================
-//  ANALÓGICO — Corrigido com touchstart
+//  ANALÓGICO
 // =============================================
 const analogContainer = document.getElementById('analogContainer');
 const analogStick = document.getElementById('analogStick');
 const MAX_R = 38;
 
 function handleAnalog(e) {
+    if (!isConnected) return;
     const rect = analogContainer.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
@@ -479,12 +637,16 @@ function handleAnalog(e) {
     );
 }
 
-analogContainer.addEventListener('touchstart', (e) => { e.preventDefault(); handleAnalog(e); });
+analogContainer.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (!requireConnection()) return;
+    handleAnalog(e);
+});
 analogContainer.addEventListener('touchmove', (e) => { e.preventDefault(); handleAnalog(e); });
 analogContainer.addEventListener('touchend', (e) => {
     e.preventDefault();
     analogStick.style.transform = 'translate(0px, 0px)';
-    NativeHID.sendGamepad(0, 0, 0, 0, 0);
+    if (isConnected) NativeHID.sendGamepad(0, 0, 0, 0, 0);
 });
 
 // =============================================
@@ -498,10 +660,12 @@ document.querySelectorAll('.btn-game, .btn-shoulder, .btn-sys[data-btn]').forEac
 
     btn.addEventListener('touchstart', (e) => {
         e.preventDefault();
+        if (!requireConnection()) return;
         NativeHID.sendGamepad(bit, 0, 0, 0, 0);
     });
     btn.addEventListener('touchend', (e) => {
         e.preventDefault();
+        if (!isConnected) return;
         NativeHID.sendGamepad(0, 0, 0, 0, 0);
     });
 });
